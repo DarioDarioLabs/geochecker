@@ -62,7 +62,11 @@ export async function checkFreshness(
 	const genre = detectGenre(page);
 
 	if (dates.length === 0) {
-		const score = genre === "article" ? 30 : 60;
+		// A brand page without dates is the norm, not a defect: the fix below
+		// says "optional", so the score must agree with it. 70 is the pass
+		// line — it reads as a note, not as something to fix. Articles are
+		// different; an undated article is a real citability problem.
+		const score = genre === "article" ? 30 : 70;
 		return {
 			id: "freshness",
 			category: "freshness",
@@ -71,7 +75,7 @@ export async function checkFreshness(
 			finding:
 				genre === "article"
 					? "No freshness signals detected on an article-genre page."
-					: "No freshness signals detected (brand page; lower priority).",
+					: "No date signals on this brand page — optional here.",
 			detail:
 				"No Last-Modified header, no <time datetime>, no schema datePublished/dateModified, no Open Graph article timestamps.",
 			fix:

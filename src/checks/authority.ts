@@ -109,9 +109,18 @@ export async function checkAuthority(
 		});
 	}
 
+	// Logo and phone are worth points but are not "gaps" — so a 90 used to be
+	// announced as "all present" while its own detail said "Logo: no". Name
+	// what is missing instead.
+	const optionalMissing = [
+		!hasLogo && "no logo in the Organization schema",
+		!tel && "no tel: link",
+	].filter((x): x is string => Boolean(x));
 	const finding =
 		issues.length === 0
-			? "Organization schema, sameAs links, About, and contact signals all present."
+			? optionalMissing.length === 0
+				? "Organization schema, sameAs links, About, and contact signals all present."
+				: `Organization schema, sameAs links, About, and contact signals present; ${optionalMissing.join(", ")}.`
 			: `Authority gaps: ${issues.join("; ")}.`;
 
 	const detail = `Organization schema: ${hasOrg ? "yes" : "no"}. sameAs entries: ${sameAsCount}. Logo in schema: ${hasLogo ? "yes" : "no"}. About link: ${aboutLink ? "yes" : "no"}. Contact link: ${contactLink ? "yes" : "no"}. mailto: ${mailto ? "yes" : "no"}. tel: ${tel ? "yes" : "no"}.`;

@@ -5,6 +5,27 @@ All notable changes to `@dariodario/geochecker` are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.6.0] - unreleased
+
+Scoring that agrees with its own advice. Measured on real prospects first.
+
+- `crawlability` only costs points now: at 100 it is left out of the overall.
+  99% of scanned sites score 100 on it, and at its weight it handed every one
+  of them a free ~12% of the total. Blocking the search crawlers still costs
+  the full weight.
+- `freshness` on a brand page without dates scores 70 (the pass line) instead
+  of 60. Its own fix said "optional"; a warn that is optional is a
+  contradiction. Undated articles are unchanged at 30.
+- `citability` on a brand page no longer scores or lists outbound source links
+  as a gap — a homepage without citations is normal, and "add links to
+  sources" is not advice its owner can use. Brand pages are judged on fluff
+  density, base 55, cap 80 as before — and a page with under 120 words is
+  `citability.thin` (20) rather than "substantive" for having no superlatives
+  in its title.
+- `authority` names what is missing when the score is under 100 ("…present;
+  no logo in the Organization schema") instead of saying "all present" while
+  the detail said otherwise.
+
 ## [2.5.0] - 2026-09-05
 
 - `runChecks` / `runChecksStream` accept `acceptLanguage`, sent as the page

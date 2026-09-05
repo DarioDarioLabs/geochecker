@@ -89,15 +89,21 @@ export async function checkCitability(
 			});
 		}
 	} else {
-		score = 30;
-		if (outboundCitations >= 3) score += 25;
-		else if (outboundCitations >= 1) score += 12;
-		else {
-			reasons.push("no outbound source links");
-			codes.push({ code: "citability.no_outbound_citations" });
-		}
+		// A brand page is not expected to cite sources — a plumber's homepage
+		// with no outbound links is normal, and "add links to sources" is not
+		// advice its owner can use. Outbound links are reported in the detail
+		// but neither scored nor listed as a gap; what a brand page IS judged
+		// on is whether its copy says anything specific (fluff density).
+		score = 55;
 
-		if (fluffRatio < 0.04) score += 25;
+		// Fluff density over a handful of words is noise: 19 characters of
+		// title scored "substantive" because nothing in them was a superlative.
+		const words = bodyText ? bodyText.split(" ").length : 0;
+		if (words < 120) {
+			score = 20;
+			reasons.push("too little text to judge");
+			codes.push({ code: "citability.thin", data: { words } });
+		} else if (fluffRatio < 0.04) score += 25;
 		else if (fluffRatio < 0.08) score += 12;
 		else {
 			reasons.push("high marketing language density");
@@ -120,14 +126,16 @@ export async function checkCitability(
 		reasons.length === 0
 			? genre === "article"
 				? "Author, date, and source links present; copy reads as substantive."
-				: "Page reads as substantive; outbound source links present."
+				: "Copy reads as specific rather than promotional."
 			: `Citability gaps: ${reasons.join("; ")}.`;
 
 	const detail = `Genre: ${genre}. Author signal: ${author ? "yes" : "no"}. Date signal: ${date ? "yes" : "no"}. Outbound citations: ${outboundCitations}. Marketing fluff density: ${(fluffRatio * 100).toFixed(1)}%.`;
 
 	const fix =
 		reasons.length === 0
-			? "Maintain. Add inline citations (sup/anchor links) when making factual claims."
+			? genre === "article"
+				? "Maintain. Add inline citations (sup/anchor links) when making factual claims."
+				: "Maintain. Keep claims specific: numbers, names, dates, and what exactly is offered."
 			: genre === "article"
 				? "Show an author byline with credentials, expose published and updated dates in <time datetime>, and link out to primary sources when stating facts. Replace superlatives with specific numbers."
 				: "Cite primary sources when stating facts and replace superlatives (best-in-class, world-leading) with specific numbers and named comparisons.";

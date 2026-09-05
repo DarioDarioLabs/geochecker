@@ -253,3 +253,50 @@ test("a throwing BUILT-IN check is still fatal", async () => {
 		restoreFetch();
 	}
 });
+
+const fixed = (
+	id: string,
+	category: CheckResult["category"],
+	score: number,
+): Check =>
+	async () => ({
+		id,
+		category,
+		score,
+		status: score >= 70 ? "pass" : score >= 40 ? "warn" : "fail",
+		finding: "f",
+		detail: "d",
+		fix: "x",
+		weight: 1,
+	});
+
+test("crawlability at 100 does not lift the overall; below 100 it counts", async () => {
+	// 99% of real sites pass crawlability. At its weight that padded every
+	// score by ~12% without telling anyone apart, so a pass is left out of the
+	// mean; a block still costs the full weight.
+	stubFetch();
+	try {
+		const padded = await runChecks("https://example.com/", {
+			checks: [fixed("structure", "structure", 50), fixed("crawlability", "crawlability", 100)],
+		});
+		assert.equal(padded.overall, 50);
+		const blocked = await runChecks("https://example.com/", {
+			checks: [fixed("structure", "structure", 50), fixed("crawlability", "crawlability", 0)],
+		});
+		assert.ok(blocked.overall < 50);
+	} finally {
+		restoreFetch();
+	}
+});
+
+test("a brand page with almost no text is thin, not substantive", async () => {
+	const thin: FetchedPage = {
+		...fakePage,
+		html: "<html><head><title>Burger King Sverige</title></head><body><div id=app></div></body></html>",
+	};
+	const citability = builtinChecks.find((c) => c.name === "checkCitability");
+	assert.ok(citability, "citability check present");
+	const r = await citability(thin);
+	assert.equal(r.score, 20);
+	assert.ok(r.codes?.some((c) => c.code === "citability.thin"));
+});

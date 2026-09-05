@@ -36,6 +36,9 @@ const CATEGORY_WEIGHT: Record<Category, number> = {
  * answers "is there something here to do?". Those are different questions and
  * conflating them is what produced the contradiction.
  */
+/** Categories that can only lower the overall, never lift it. */
+const COSTS_ONLY: ReadonlySet<Category> = new Set<Category>(["crawlability"]);
+
 export function statusFor(
 	score: number,
 	hasFindings = false,
@@ -67,10 +70,19 @@ export function aggregate(
 		});
 	}
 
+	// A category in COSTS_ONLY enters the overall only when it has something
+	// to say: at 100 it is left out of both numerator and denominator. Measured
+	// across 172 real prospects, crawlability was 100 for 99% of them, and at
+	// its weight it handed every site a free ~12% of the total — compressing the
+	// range without telling anyone apart. Blocking the search crawlers still
+	// costs the full weight; passing no longer pads.
+	const counted = categories.filter(
+		(c) => !(COSTS_ONLY.has(c.category) && c.score >= 100),
+	);
 	const totalCatWeight =
-		categories.reduce((s, c) => s + CATEGORY_WEIGHT[c.category], 0) || 1;
+		counted.reduce((s, c) => s + CATEGORY_WEIGHT[c.category], 0) || 1;
 	const overall =
-		categories.reduce(
+		counted.reduce(
 			(s, c) => s + c.score * CATEGORY_WEIGHT[c.category],
 			0,
 		) / totalCatWeight;
