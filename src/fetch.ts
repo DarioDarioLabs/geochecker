@@ -1,7 +1,7 @@
 import type { FetchedPage } from "./types.js";
 
 const UA =
-	"Mozilla/5.0 (compatible; DarioGeoBot/1.0; +https://dariodario.com/geo-check)";
+	"Mozilla/5.0 (compatible; DarioGeoBot/1.0; +https://dariodario.com/geochecker)";
 
 const TIMEOUT_MS = 12_000;
 const MAX_BYTES = 2_500_000;

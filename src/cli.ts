@@ -42,7 +42,7 @@ Examples:
   geochecker https://example.com --json | jq .
   geochecker https://example.com --min-score 70
 
-Hosted version with comparison + history: https://dariodario.com/geo-check
+Hosted version with an AI read of the page: https://dariodario.com/geochecker
 `.trim());
 }
 
@@ -120,7 +120,7 @@ async function main() {
 		console.log(JSON.stringify(report, null, 2));
 	} else {
 		printReport(report, flags.category);
-		console.log(`Hosted version with site comparison + history → https://dariodario.com/geo-check\n`);
+		console.log(`Hosted version with an AI read of the page → https://dariodario.com/geochecker\n`);
 	}
 
 	if (flags.minScore != null && report.overall < flags.minScore) {

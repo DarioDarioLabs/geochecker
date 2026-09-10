@@ -134,7 +134,7 @@ const report = await runChecks("https://example.com", {
 | Flag | Description |
 |---|---|
 | `--json` | Output the full report as JSON (machine-readable) |
-| `--category <name>` | Show only one category (`structure`, `citability`, `crawlability`, `freshness`, `authority`, `renderability`) |
+| `--category <name>` | Show only one category (`structure`, `citability`, `crawlability`, `freshness`, `authority`, `renderability`, `indexability`) |
 | `--min-score <n>` | Exit with code 1 if overall < `n`. Use as a CI quality gate. |
 | `-h`, `--help` | Show help |
 
@@ -147,7 +147,7 @@ const report = await runChecks("https://example.com", {
 
 ## Hosted version
 
-Want comparison against a competitor, score history over time, branded PDF reports, or scheduled scans? The hosted version at **[dariodario.com/geo-check](https://dariodario.com/geo-check)** runs the same engine plus those features. Free for single-URL scans.
+The hosted version at **[dariodario.com/geochecker](https://dariodario.com/geochecker)** runs this same engine plus the judgement this package deliberately leaves out: a language model reads the page — and up to two more pages of the site — and fills the `answerability` category, alongside what Google knows about the business (Maps listing, real-user Core Web Vitals). Reports get a shareable permalink and a PDF download. Free.
 
 ## Contributing
 
