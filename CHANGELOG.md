@@ -230,6 +230,6 @@ crawler model).
   concrete fix per check. CLI (`npx @dariodario/geochecker <url>`), programmatic
   `runChecks` / `runChecksStream`, and `defineCheck` for custom checks.
 
-[2.0.0]: https://github.com/dariodario-com/geochecker/compare/v1.1.0...v2.0.0
-[1.1.0]: https://github.com/dariodario-com/geochecker/compare/v1.0.0...v1.1.0
-[1.0.0]: https://github.com/dariodario-com/geochecker/releases/tag/v1.0.0
+[2.0.0]: https://github.com/dariodariolabs/geochecker/compare/v1.1.0...v2.0.0
+[1.1.0]: https://github.com/dariodariolabs/geochecker/compare/v1.0.0...v1.1.0
+[1.0.0]: https://github.com/dariodariolabs/geochecker/releases/tag/v1.0.0
