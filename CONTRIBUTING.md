@@ -4,7 +4,7 @@ Thanks for your interest. A few notes to set expectations.
 
 ## Maintenance posture
 
-GEO Checker is maintained by [Dario Dario](https://dariodario.com) as an open-source companion to our hosted GEO scoring service. We triage issues and PRs roughly weekly. For substantial changes, please open a [Discussion](https://github.com/dariodario-com/geochecker/discussions) before writing the code so we can align on direction.
+GEO Checker is maintained by [Dario Dario](https://dariodario.com) as an open-source companion to our hosted GEO scoring service. We triage issues and PRs roughly weekly. For substantial changes, please open a [Discussion](https://github.com/dariodariolabs/geochecker/discussions) before writing the code so we can align on direction.
 
 ## Adding a new check
 
@@ -32,7 +32,7 @@ Add the check to `src/checks/`, register it in `src/index.ts` under `builtinChec
 ## Local development
 
 ```bash
-git clone https://github.com/dariodario-com/geochecker
+git clone https://github.com/dariodariolabs/geochecker
 cd geochecker
 npm install
 npm run build       # compile TS → dist/

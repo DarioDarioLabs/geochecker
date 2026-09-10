@@ -151,10 +151,10 @@ The hosted version at **[dariodario.com/geochecker](https://dariodario.com/geoch
 
 ## Contributing
 
-PRs welcome — particularly for new checks. Please open a [Discussion](https://github.com/dariodario-com/geochecker/discussions) first if proposing a substantial addition.
+PRs welcome — particularly for new checks. Please open a [Discussion](https://github.com/dariodariolabs/geochecker/discussions) first if proposing a substantial addition.
 
 ```bash
-git clone https://github.com/dariodario-com/geochecker
+git clone https://github.com/dariodariolabs/geochecker
 cd geochecker
 npm install
 npm run build

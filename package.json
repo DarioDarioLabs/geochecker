@@ -4,13 +4,13 @@
   "description": "Open-source Generative Engine Optimization (GEO) scorer. Check any site's readiness for AI search.",
   "license": "MIT",
   "author": "Dario Dario <hello@dariodario.com> (https://dariodario.com)",
-  "homepage": "https://github.com/dariodario-com/geochecker#readme",
+  "homepage": "https://github.com/dariodariolabs/geochecker#readme",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/dariodario-com/geochecker.git"
+    "url": "git+https://github.com/dariodariolabs/geochecker.git"
   },
   "bugs": {
-    "url": "https://github.com/dariodario-com/geochecker/issues"
+    "url": "https://github.com/dariodariolabs/geochecker/issues"
   },
   "keywords": [
     "geo",
