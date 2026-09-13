@@ -5,7 +5,12 @@ All notable changes to `@dariodario/geochecker` are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [2.6.0] - unreleased
+## [2.6.1] - 2026-09-10
+
+No engine changes. `repository`, `bugs` and `homepage` follow the GitHub org
+rename to `DarioDarioLabs`; the npm package name is unchanged.
+
+## [2.6.0] - 2026-09-10
 
 Scoring that agrees with its own advice. Measured on real prospects first.
 
