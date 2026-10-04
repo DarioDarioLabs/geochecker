@@ -17,6 +17,7 @@ import {
 	statusFor,
 	visibleText,
 	wordCount,
+	pageProse,
 	type Check,
 	type CheckResult,
 	type FetchedPage,
@@ -136,6 +137,20 @@ test("visibleText ignores script, style, noscript and template content", () => {
 	);
 	assert.equal(visibleText(root), "hello world");
 	assert.equal(wordCount(visibleText(root)), 2);
+});
+
+test("pageProse takes the content region and drops the page chrome, not section headings", () => {
+	const html = `<html><body><header class="site"><nav><a href="/">Home</a><a href="/about">About</a></nav><p>${prose(60)}</p></header><section><header class="entry-header"><h2>Our work</h2></header><p>${prose(40)}</p></section><article><p>${prose(10)}</p></article><footer><p>© Acme ${prose(20)}</p></footer></body></html>`;
+	const text = pageProse(html);
+	// The page header (it holds the nav) and the footer go; the section with
+	// its own heading stays; the 10-word article teaser is not "the content".
+	assert.equal(wordCount(text), 52, text.slice(0, 80));
+	assert.match(text, /^Our work/);
+	const withMain = `<html><body><nav><a href="/">Home</a></nav><main><h1>Acme</h1><p>${prose(50)}</p></main><footer>${prose(30)}</footer></body></html>`;
+	assert.equal(wordCount(pageProse(withMain)), 51);
+	const post = `<html><body><nav><a href="/">Home</a></nav><article><h1>Post</h1><p>${prose(300)}</p></article><aside>${prose(100)}</aside></body></html>`;
+	assert.equal(wordCount(pageProse(post)), 301, "an article that is most of the page is the content");
+	assert.equal(pageProse(`<html><head><title>Shell</title></head><body><div id="root"></div></body></html>`), "");
 });
 
 test("a Next.js-style shell with a data blob is an empty shell, not a wordy page", async () => {

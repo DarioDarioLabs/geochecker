@@ -16,7 +16,7 @@ import type {
 export { builtinChecks, pageChecks, siteChecks };
 export { scanSite, collectCandidates, defaultPick, roleOf, unreachableResult, wallOf, isReadable } from "./site.js";
 export type { SiteOptions, PickPages } from "./site.js";
-export { visibleText, wordCount } from "./text.js";
+export { visibleText, wordCount, pageProse } from "./text.js";
 export { resetFetchMemo } from "./fetch.js";
 export { CATEGORIES, CATEGORY_WEIGHT, aggregate, aggregateSite } from "./scoring.js";
 
