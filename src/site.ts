@@ -167,8 +167,9 @@ export type SiteOptions = {
 	onPlan?: (plan: { site: string; candidates: Candidate[]; pages: { url: string; role: PageRole }[] }) => void;
 	/** Each page as it arrives, readable or not. */
 	onPage?: (page: FetchedPage, role: PageRole) => void;
-	/** Each result as it completes. Site-level results carry role `home`. */
-	onCheck?: (result: CheckResult, role: PageRole) => void;
+	/** Each result as it completes, with the role and URL of the page it was
+	 *  measured on. Site-level results carry role `home` and the site origin. */
+	onCheck?: (result: CheckResult, role: PageRole, page: string) => void;
 };
 
 /**
@@ -198,7 +199,7 @@ export async function scanSite(url: string, opts: SiteOptions = {}): Promise<Sit
 		// Nothing to scan. Say so with one result rather than scoring the
 		// error page or the bot wall as if it were the site.
 		const unreachable = unreachableResult(home);
-		opts.onCheck?.(unreachable, "home");
+		opts.onCheck?.(unreachable, "home", home.finalUrl);
 		const page = pageReport(home, "home", [unreachable]);
 		opts.onPlan?.({ site, candidates: [], pages: [{ url: home.finalUrl, role: "home" }] });
 		return {
@@ -263,12 +264,12 @@ export async function scanSite(url: string, opts: SiteOptions = {}): Promise<Sit
 		unique.map(async ({ page, role }) => {
 			if (!isReadable(page)) {
 				const r = unreachableResult(page);
-				opts.onCheck?.(r, role);
+				opts.onCheck?.(r, role, page.finalUrl);
 				return pageReport(page, role, [r]);
 			}
 			const run = async (check: Check) => {
 				const r = await check(page);
-				opts.onCheck?.(r, role);
+				opts.onCheck?.(r, role, page.finalUrl);
 				return r;
 			};
 			const [builtin, extra] = await Promise.all([
@@ -285,7 +286,7 @@ export async function scanSite(url: string, opts: SiteOptions = {}): Promise<Sit
 	const runSite = async (check: SiteCheck) => {
 		const r = await check(siteInput);
 		r.scope = "site";
-		opts.onCheck?.(r, "home");
+		opts.onCheck?.(r, "home", site);
 		return r;
 	};
 	// Built-in site checks take the home page: robots.txt and the sitemap are

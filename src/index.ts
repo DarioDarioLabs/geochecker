@@ -169,7 +169,7 @@ export function runChecksStream(
 export type SiteStreamEvent =
 	| { type: "plan"; site: string; candidates: Candidate[]; pages: { url: string; role: PageRole }[] }
 	| { type: "page"; page: FetchedPage; role: PageRole }
-	| { type: "check"; result: CheckResult; role: PageRole }
+	| { type: "check"; result: CheckResult; role: PageRole; page: string }
 	| { type: "done"; report: SiteReport };
 
 /**
@@ -190,7 +190,7 @@ export function scanSiteStream(
 				...opts,
 				onPlan: (plan) => push({ type: "plan", ...plan }),
 				onPage: (page, role) => push({ type: "page", page, role }),
-				onCheck: (result, role) => push({ type: "check", result, role }),
+				onCheck: (result, role, page) => push({ type: "check", result, role, page }),
 			}),
 		(report) => ({ type: "done", report }),
 	);
