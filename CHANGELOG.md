@@ -91,6 +91,11 @@ markup and links that say who is behind the site; it was never reputation),
   scan uses for candidates.
 - The test suite is hermetic — `fetch` is stubbed for the whole file; it used
   to hit example.com.
+- `pageProse(html, max)` — the prose of a page as a reader meets it: `<main>`
+  trusted, an `<article>` only when it is most of the page, nav/footer/aside
+  and the page-level header removed, section headings kept. For consumers
+  that hand text to a model; the regex cut it replaces handed one a 35-word
+  teaser as the whole page.
 - `visibleText`, `wordCount`, `aggregate`, `aggregateSite`, `CATEGORIES`,
   `CATEGORY_WEIGHT`, `collectCandidates`, `defaultPick`, `roleOf`, `wallOf`,
   `isReadable`, `unreachableResult`, `defineSiteCheck` and the site types are
