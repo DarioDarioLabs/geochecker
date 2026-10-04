@@ -177,7 +177,8 @@ function result(x: {
 }): CheckResult {
 	return {
 		id: "crawlability",
-		category: "crawlability",
+		category: "access",
+		scope: "site",
 		score: x.score,
 		status: statusFor(x.score, x.hasFindings),
 		finding: x.finding,

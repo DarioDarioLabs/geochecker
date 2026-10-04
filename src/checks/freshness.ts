@@ -94,15 +94,31 @@ export async function checkFreshness(
 		};
 	}
 
-	const newest = dates.reduce((a, b) => (a.date > b.date ? a : b));
-	const ageDays = Math.floor((Date.now() - newest.date.getTime()) / DAY);
+	// A date in the future is an event, a launch or a concert — not a
+	// statement about when the page was written. Until 3.0 it was the newest
+	// date and scored "aging"; now it is not a freshness signal at all.
+	const past = dates.filter((d) => d.date.getTime() <= Date.now() + DAY);
+	if (past.length === 0) {
+		const score = 70;
+		return {
+			id: "freshness",
+			category: "freshness",
+			score,
+			status: statusFor(score),
+			finding: "The only dates on the page are in the future — no signal of when it was written.",
+			detail: `${dates.length} date(s) found, all upcoming: ${[...new Set(dates.map((d) => d.source))].join(", ")}.`,
+			fix: "Add a published or last-updated date (a <time datetime> near the title, or schema dateModified) so the event dates are not the only ones an assistant can see.",
+			weight: 1.0,
+			codes: [{ code: "freshness.future_only", data: { count: dates.length } }],
+		};
+	}
+
+	const newest = past.reduce((a, b) => (a.date > b.date ? a : b));
+	const ageDays = Math.max(0, Math.floor((Date.now() - newest.date.getTime()) / DAY));
 
 	let score: number;
 	let bucket: string;
-	if (ageDays < 0) {
-		score = 60;
-		bucket = "freshness.aging";
-	} else if (ageDays < 90) {
+	if (ageDays < 90) {
 		score = 100;
 		bucket = "freshness.fresh";
 	} else if (ageDays < 365) {
@@ -128,7 +144,7 @@ export async function checkFreshness(
 
 	const finding = `Newest date signal: ${newest.date.toISOString().split("T")[0]} (${ageDays} day${ageDays === 1 ? "" : "s"} ago).`;
 
-	const detail = `${dates.length} freshness signal(s) found: ${[...new Set(dates.map((d) => d.source))].join(", ")}.`;
+	const detail = `${past.length} freshness signal(s) found: ${[...new Set(past.map((d) => d.source))].join(", ")}.`;
 
 	const fix =
 		ageDays < 365

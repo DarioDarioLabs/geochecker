@@ -1,4 +1,5 @@
 import { parse } from "node-html-parser";
+import { visibleText, wordCount } from "./text.js";
 import type { FetchedPage } from "./types.js";
 
 export type Genre = "article" | "brand";
@@ -34,10 +35,7 @@ export function detectGenre(page: FetchedPage): Genre {
 	if (ARTICLE_PATH.test(page.finalUrl)) return "article";
 
 	const articleEl = root.querySelector("article");
-	if (articleEl) {
-		const words = (articleEl.text ?? "").trim().split(/\s+/).filter(Boolean).length;
-		if (words >= 500) return "article";
-	}
+	if (articleEl && wordCount(visibleText(articleEl)) >= 500) return "article";
 
 	return "brand";
 }

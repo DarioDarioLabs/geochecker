@@ -5,6 +5,97 @@ All notable changes to `@dariodario/geochecker` are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.0.0] - 2026-10-04
+
+The site, not the URL. **Breaking**: the categories, several scores and the
+default CLI behaviour change; every stored report from 2.x is incomparable.
+
+### Scans a site
+
+- `scanSite(url)` and `scanSiteStream(url)` score a SITE: always its home
+  page, the entered URL if it is a deeper page, and up to four more pages an
+  assistant would need — About, Services or Products, Prices, Contact — found
+  among the home page's links (navigation first) and the sitemap. Inner pages
+  are worse than the home page on two sites in three, and more than half of
+  sites have a problem the home page hides; assistants cite the page that
+  answers, which is rarely the home page.
+- Candidates are offered through `pickPages`, so a caller can let a model
+  choose; only candidates from the list are honoured. Login, cart, account,
+  legal, search and country-chooser pages are never candidates.
+- Site-level checks (`crawlability`, `sitemap`, `llms_txt`) run once per site
+  and carry `scope: "site"`; every result in a site report carries the `page`
+  it was measured on. `extraSiteChecks` run once with every readable page —
+  the seam for a model that reads the whole site.
+- The CLI scans the site by default; `--page` keeps the single-page scan.
+  `--pages <n>` and `--lang <tag>` are new. `runChecks` is unchanged for one
+  page.
+
+### Five categories instead of eight
+
+`access` (crawlability, indexable, canonical, sitemap, renderability,
+llms_txt), `structure` (schema, structure, og_meta), `substance` (citability,
+plus a caller-supplied `answerability`), `identity` (authority — on-page
+markup and links that say who is behind the site; it was never reputation),
+`freshness`. Check ids and codes are unchanged except where noted below.
+
+- **Access is the weakest link**, not a mean: a JavaScript shell averaged with
+  four passing hygiene checks used to come out at 77. At 100 the category is
+  left out of the overall, as crawlability alone was since 2.6.0 — being
+  reachable is the baseline, not an achievement. The access checks are priced
+  for that rule: a missing canonical is 85 (was 55), a missing sitemap 70 (was
+  45), an undeclared one 90 (was 80), a cross canonical 80 (was 70), a
+  malformed one 70 (was 40). `renderability` weighs 1.6 (was 1).
+- Category weights: access 1.5, structure 1.3, substance 1.6, identity 1.0,
+  freshness 0.8. Inside substance, `citability` weighs 1.0 and a supplied
+  `answerability` should weigh 1.3 — the judgement over prose outweighs the
+  parser's proxy for it.
+
+### Scores that were wrong
+
+- **Word counts no longer include script, style and noscript text.**
+  node-html-parser keeps them in `.text`, so a Next.js shell carrying its
+  `__NEXT_DATA__` blob read as a wordy, server-rendered page while a Vite
+  shell with the same two words of copy failed as empty. `structure`,
+  `renderability`, `citability` and genre detection now count visible prose
+  only. Expect JavaScript-heavy sites to drop; they were being credited for
+  text no assistant can read.
+- **A page that answers an error status, or a bot wall served as 200, is not
+  scored.** It gets one result, `reachable` (0, `access.unreachable
+  {status}` or `access.blocked {blocker}`), and in a site scan it is listed
+  as unreadable and left out of the site score. Until now a 404 page earned a
+  structure score.
+- **A future date is not a freshness signal.** An event or launch
+  `<time datetime>` used to be the newest date and scored "aging" (60). Future
+  dates are ignored; a page whose only dates are upcoming scores 70 with
+  `freshness.future_only`.
+- **A brand page can reach 100.** `citability` was capped at 80 on brand pages
+  and `schema` needed an Article for its last 15 points, so a brochure site
+  with nothing left to fix was told something was missing. `citability` on a
+  brand page now scores specific claims (years, prices, quantities, phone
+  numbers, "since 1998") — `citability.no_specifics` when there are none —
+  plus fluff density, to 100. `schema` gives the 15 points for any page-level
+  type (WebPage, Product, Service, FAQPage, HowTo, SoftwareApplication, or an
+  Article) and emits `schema.no_page_type` when an Organization is declared
+  without one.
+- `authority` keeps the best-described Organization node's `sameAs` count; a
+  second, sparser node (a publisher stub inside an Article) used to overwrite
+  it. "Kundservice", "customer service" and "support" links count as a way to
+  reach a person.
+- `renderability` emits `renderability.no_landmark` on the one path that had
+  no code (plenty of text, no `<main>`/`<article>`).
+
+### Housekeeping
+
+- robots.txt is fetched once per scan (a 30-second memo; `resetFetchMemo()`
+  clears it for tests). The sitemap check reads the same declaration the site
+  scan uses for candidates.
+- The test suite is hermetic — `fetch` is stubbed for the whole file; it used
+  to hit example.com.
+- `visibleText`, `wordCount`, `aggregate`, `aggregateSite`, `CATEGORIES`,
+  `CATEGORY_WEIGHT`, `collectCandidates`, `defaultPick`, `roleOf`, `wallOf`,
+  `isReadable`, `unreachableResult`, `defineSiteCheck` and the site types are
+  exported.
+
 ## [2.6.1] - 2026-09-10
 
 No engine changes. `repository`, `bugs` and `homepage` follow the GitHub org

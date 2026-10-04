@@ -1,37 +1,24 @@
 import { fetchPage } from "./fetch.js";
 import { aggregate } from "./scoring.js";
-import type { Check, CheckResult, FetchedPage, Report } from "./types.js";
+import { builtinChecks, pageChecks, siteChecks } from "./checks/index.js";
+import { isReadable, scanSite, unreachableResult, type SiteOptions } from "./site.js";
+import type {
+	Candidate,
+	Check,
+	CheckResult,
+	FetchedPage,
+	PageRole,
+	Report,
+	SiteCheck,
+	SiteReport,
+} from "./types.js";
 
-import { checkSchema } from "./checks/schema.js";
-import { checkStructure } from "./checks/structure.js";
-import { checkCitability } from "./checks/citability.js";
-import { checkCrawlability } from "./checks/crawlability.js";
-import { checkLlmsTxt } from "./checks/llmstxt.js";
-import { checkFreshness } from "./checks/freshness.js";
-import { checkOg } from "./checks/og.js";
-import { checkAuthority } from "./checks/authority.js";
-import { checkRenderability } from "./checks/renderability.js";
-import {
-	checkIndexable,
-	checkCanonical,
-	checkSitemap,
-} from "./checks/indexability.js";
-
-/** Built-in checks run by `runChecks` in default order. */
-export const builtinChecks: Check[] = [
-	checkSchema,
-	checkStructure,
-	checkCitability,
-	checkCrawlability,
-	checkLlmsTxt,
-	checkFreshness,
-	checkOg,
-	checkAuthority,
-	checkRenderability,
-	checkIndexable,
-	checkCanonical,
-	checkSitemap,
-];
+export { builtinChecks, pageChecks, siteChecks };
+export { scanSite, collectCandidates, defaultPick, roleOf, unreachableResult, wallOf, isReadable } from "./site.js";
+export type { SiteOptions, PickPages } from "./site.js";
+export { visibleText, wordCount } from "./text.js";
+export { resetFetchMemo } from "./fetch.js";
+export { CATEGORIES, CATEGORY_WEIGHT, aggregate, aggregateSite } from "./scoring.js";
 
 export type RunOptions = {
 	/** `Accept-Language` for the page fetch — the audience's language, so a
@@ -52,9 +39,10 @@ export type RunOptions = {
 };
 
 /**
- * Score a single URL across all GEO categories.
+ * Score ONE page. For a site — the home page plus the pages an assistant
+ * would need — use `scanSite`.
  * @example
- *   const report = await runChecks("https://example.com");
+ *   const report = await runChecks("https://example.com/about");
  *   console.log(report.overall);
  */
 export async function runChecks(
@@ -63,6 +51,15 @@ export async function runChecks(
 ): Promise<Report> {
 	const page = await fetchPage(url, { acceptLanguage: opts.acceptLanguage });
 	opts.onFetched?.(page);
+	const context = { url: page.url, finalUrl: page.finalUrl, fetchedAt: page.fetchedAt };
+
+	// An error page or a bot wall is not the page. Scoring its HTML gave a 404
+	// a structure score; the status (or the wall) is the only finding there is.
+	if (!isReadable(page)) {
+		const r = unreachableResult(page);
+		opts.onCheck?.(r);
+		return aggregate([r], context);
+	}
 
 	const run = async (check: Check) => {
 		const r = await check(page);
@@ -95,11 +92,7 @@ export async function runChecks(
 		}),
 	];
 
-	return aggregate(results, {
-		url: page.url,
-		finalUrl: page.finalUrl,
-		fetchedAt: page.fetchedAt,
-	});
+	return aggregate(results, context);
 }
 
 export type StreamEvent =
@@ -107,19 +100,12 @@ export type StreamEvent =
 	| { type: "check"; result: CheckResult }
 	| { type: "done"; report: Report };
 
-/**
- * Score a URL and stream events as they arrive (page fetch, each check, final report).
- * Useful for live UIs.
- * @example
- *   for await (const evt of runChecksStream("https://example.com")) {
- *     if (evt.type === "check") render(evt.result);
- *   }
- */
-export async function* runChecksStream(
-	url: string,
-	opts: Omit<RunOptions, "onCheck" | "onFetched"> = {},
-): AsyncGenerator<StreamEvent, void, unknown> {
-	const events: StreamEvent[] = [];
+/** Queue-backed async generator over a callback-driven run. */
+function streamOf<E, R>(
+	start: (push: (e: E) => void) => Promise<R>,
+	done: (r: R) => E,
+): AsyncGenerator<E, void, unknown> {
+	const events: E[] = [];
 	let terminated = false;
 	let runError: unknown = null;
 	let resolveNext: (() => void) | null = null;
@@ -128,20 +114,13 @@ export async function* runChecksStream(
 		resolveNext = null;
 		r?.();
 	};
-
-	runChecks(url, {
-		...opts,
-		onFetched: (page) => {
-			events.push({ type: "fetched", page });
-			wake();
-		},
-		onCheck: (result) => {
-			events.push({ type: "check", result });
-			wake();
-		},
-	})
-		.then((report) => {
-			events.push({ type: "done", report });
+	const push = (e: E) => {
+		events.push(e);
+		wake();
+	};
+	start(push)
+		.then((r) => {
+			events.push(done(r));
 		})
 		.catch((err) => {
 			runError = err;
@@ -151,21 +130,80 @@ export async function* runChecksStream(
 			wake();
 		});
 
-	while (true) {
-		while (events.length) yield events.shift()!;
-		if (terminated) {
-			if (runError) throw runError;
-			return;
+	return (async function* () {
+		while (true) {
+			while (events.length) yield events.shift()!;
+			if (terminated) {
+				if (runError) throw runError;
+				return;
+			}
+			await new Promise<void>((resolve) => {
+				resolveNext = resolve;
+			});
 		}
-		await new Promise<void>((resolve) => {
-			resolveNext = resolve;
-		});
-	}
+	})();
 }
 
 /**
- * Helper for defining a custom check that augments the built-in set.
- * Returns the check function as-is, but provides type inference.
+ * Score a page and stream events as they arrive (page fetch, each check, final report).
+ * @example
+ *   for await (const evt of runChecksStream("https://example.com")) {
+ *     if (evt.type === "check") render(evt.result);
+ *   }
+ */
+export function runChecksStream(
+	url: string,
+	opts: Omit<RunOptions, "onCheck" | "onFetched"> = {},
+): AsyncGenerator<StreamEvent, void, unknown> {
+	return streamOf<StreamEvent, Report>(
+		(push) =>
+			runChecks(url, {
+				...opts,
+				onFetched: (page) => push({ type: "fetched", page }),
+				onCheck: (result) => push({ type: "check", result }),
+			}),
+		(report) => ({ type: "done", report }),
+	);
+}
+
+export type SiteStreamEvent =
+	| { type: "plan"; site: string; candidates: Candidate[]; pages: { url: string; role: PageRole }[] }
+	| { type: "page"; page: FetchedPage; role: PageRole }
+	| { type: "check"; result: CheckResult; role: PageRole }
+	| { type: "done"; report: SiteReport };
+
+/**
+ * Scan a site and stream events as they arrive: the plan (which pages and
+ * why), each page as it is fetched, each result, and the site report.
+ * @example
+ *   for await (const evt of scanSiteStream("https://example.com")) {
+ *     if (evt.type === "check") render(evt.result, evt.role);
+ *   }
+ */
+export function scanSiteStream(
+	url: string,
+	opts: Omit<SiteOptions, "onPlan" | "onPage" | "onCheck"> = {},
+): AsyncGenerator<SiteStreamEvent, void, unknown> {
+	return streamOf<SiteStreamEvent, SiteReport>(
+		(push) =>
+			scanSite(url, {
+				...opts,
+				onPlan: (plan) => push({ type: "plan", ...plan }),
+				onPage: (page, role) => push({ type: "page", page, role }),
+				onCheck: (result, role) => push({ type: "check", result, role }),
+			}),
+		(report) => ({ type: "done", report }),
+	);
+}
+
+/** Score-to-status mapping, exported so a consumer building its own checks
+ *  labels them the same way the built-ins do — including the rule that a check
+ *  which named a problem is never `pass`. See ./scoring.ts. */
+export { statusFor } from "./scoring.js";
+
+/**
+ * Helper for defining a custom page check. Returns the function as-is, with
+ * type inference.
  * @example
  *   const myCheck = defineCheck(async (page) => ({
  *     id: "my-check",
@@ -178,21 +216,28 @@ export async function* runChecksStream(
  *     weight: 1,
  *   }));
  */
-/** Score-to-status mapping, exported so a consumer building its own checks
- *  labels them the same way the built-ins do — including the rule that a check
- *  which named a problem is never `pass`. See ./scoring.ts. */
-export { statusFor } from "./scoring.js";
-
 export function defineCheck(check: Check): Check {
 	return check;
 }
 
+/** The same, for a check that sees every page of a site scan at once. */
+export function defineSiteCheck(check: SiteCheck): SiteCheck {
+	return check;
+}
+
 export type {
-	Check,
-	Report,
-	CheckResult,
-	CategoryScore,
+	Candidate,
 	Category,
-	Status,
+	CategoryScore,
+	Check,
+	CheckCode,
+	CheckResult,
 	FetchedPage,
+	PageReport,
+	PageRole,
+	Report,
+	SiteCheck,
+	SiteInput,
+	SiteReport,
+	Status,
 } from "./types.js";

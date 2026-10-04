@@ -1,14 +1,25 @@
 export type Status = "pass" | "warn" | "fail";
 
+/**
+ * Five categories since 3.0. Each answers one question a reader has:
+ *
+ *   access     — can an assistant get the page at all? robots.txt, noindex,
+ *                canonical, sitemap, and whether the content exists before
+ *                JavaScript runs. A gate, not a merit: scored as its WEAKEST
+ *                check, and left out of the overall when nothing is wrong.
+ *   structure  — can it parse what it got? JSON-LD, headings, meta tags.
+ *   substance  — is there anything worth quoting? Specific claims, sources,
+ *                and (supplied by the caller) a judgement over the prose.
+ *   identity   — can it tell who is behind the site? Organization markup,
+ *                About and contact affordances.
+ *   freshness  — is it current?
+ */
 export type Category =
+	| "access"
 	| "structure"
-	| "citability"
-	| "crawlability"
-	| "freshness"
-	| "authority"
-	| "renderability"
-	| "indexability"
-	| "answerability";
+	| "substance"
+	| "identity"
+	| "freshness";
 
 /**
  * A structured, language-independent identifier for a specific finding within
@@ -34,12 +45,15 @@ export type CheckResult = {
 	detail: string;
 	fix: string;
 	weight: number;
-	/**
-	 * Structured codes describing the specific issues observed. Optional for
-	 * backwards compatibility — older checks may not emit these. All built-in
-	 * checks emit codes from v1.1.0 onwards.
-	 */
+	/** Structured codes describing the specific issues observed. Every built-in
+	 *  check emits at least one. */
 	codes?: CheckCode[];
+	/** `site` for a check about the site rather than one page (robots.txt, the
+	 *  sitemap, llms.txt) — run once per site scan. Page checks leave it unset. */
+	scope?: "page" | "site";
+	/** In a site report: the URL this result was measured on. Site-level
+	 *  results carry the site origin. */
+	page?: string;
 };
 
 export type FetchedPage = {
@@ -57,6 +71,7 @@ export type CategoryScore = {
 	checks: CheckResult[];
 };
 
+/** One page, scored. */
 export type Report = {
 	url: string;
 	finalUrl: string;
@@ -67,3 +82,64 @@ export type Report = {
 };
 
 export type Check = (input: FetchedPage) => Promise<CheckResult>;
+
+// ---- Site scanning (3.0) -------------------------------------------------------
+
+/** Why a page is in the scan. `home` is always the site root; `entered` is a
+ *  deeper URL the caller asked about; the rest are the pages an assistant would
+ *  need to describe the business. */
+export type PageRole =
+	| "home"
+	| "entered"
+	| "about"
+	| "services"
+	| "products"
+	| "prices"
+	| "contact"
+	| "other";
+
+/** A page an assistant could be sent to, found on the home page or in the
+ *  sitemap, with the role its path or link label suggests. */
+export type Candidate = {
+	url: string;
+	path: string;
+	/** The link text, when the candidate came from a link. */
+	label: string | null;
+	role: PageRole;
+	source: "nav" | "link" | "sitemap";
+};
+
+export type PageReport = Report & {
+	role: PageRole;
+	status: number;
+	/** The page answered with an error status (or not at all) and was not
+	 *  scored — it does not enter the site score. */
+	unreadable: boolean;
+};
+
+export type SiteReport = {
+	/** What was asked for, normalised. */
+	url: string;
+	/** The site's origin after redirects, with a trailing slash. */
+	site: string;
+	overall: number;
+	categories: CategoryScore[];
+	/** Every result from every readable page plus the site-level ones, each
+	 *  tagged with the `page` it was measured on. */
+	checks: CheckResult[];
+	/** The pages scanned, home first. */
+	pages: PageReport[];
+	/** What the scan had to choose from, so a caller can see why a page was
+	 *  or was not read. */
+	candidates: Candidate[];
+	fetchedAt: string;
+};
+
+/** Input to a site-level check: every readable page of the scan with its
+ *  role, home first. */
+export type SiteInput = {
+	site: string;
+	pages: { page: FetchedPage; role: PageRole }[];
+};
+
+export type SiteCheck = (input: SiteInput) => Promise<CheckResult>;

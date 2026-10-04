@@ -16,18 +16,27 @@ import type { Check } from "@dariodario/geochecker";
 export const myCheck: Check = async (page) => {
   return {
     id: "my-check",            // unique ID across all checks
-    category: "structure",     // structure | citability | crawlability | freshness | authority
+    category: "structure",     // access | structure | substance | identity | freshness
     score: 100,                // 0-100
-    status: "pass",            // pass | warn | fail
+    status: "pass",            // pass | warn | fail — use statusFor(score, hasFindings)
     finding: "Short summary",
     detail: "Longer explanation",
     fix: "What to do about it",
-    weight: 1,                 // higher = more impact on category score
+    weight: 1,                 // higher = more impact on category score; 0 = reported only
+    codes: [{ code: "my-check.ok" }], // the contract consumers localise from
   };
 };
 ```
 
-Add the check to `src/checks/`, register it in `src/index.ts` under `builtinChecks`, and add a corresponding test in `tests/`.
+Add the check to `src/checks/`, register it in `src/checks/index.ts` — under
+`pageChecks` if it is about one page, under `siteChecks` if it is about the site
+(robots.txt, the sitemap) and should run once per site scan — and add a test in
+`tests/`. Tests are hermetic: `fetch` is stubbed, so route whatever your check
+fetches through the `route()` table.
+
+Weight a new check on measured evidence, not on how important it sounds. A check
+everyone passes and a check everyone fails are equally useless; ship at weight 0
+and raise it once the distribution across real sites is known.
 
 ## Local development
 

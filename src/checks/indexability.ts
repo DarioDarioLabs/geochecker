@@ -1,9 +1,10 @@
 import type { CheckResult, CheckCode, FetchedPage } from "../types.js";
-import { fetchText, originOf } from "../fetch.js";
+import { declaredSitemaps, originOf } from "../fetch.js";
 import { statusFor } from "../scoring.js";
 
 /**
- * Indexability — can a search engine list this page at all?
+ * Indexability — can a search engine list this page at all? Three checks in
+ * the `access` category since 3.0.
  *
  * These sit apart from `crawlability`, which asks whether AI search crawlers are
  * *allowed in* by robots.txt. Indexability is the next question: once a crawler
@@ -83,7 +84,7 @@ export async function checkIndexable(page: FetchedPage): Promise<CheckResult> {
 
 	return {
 		id: "indexable",
-		category: "indexability",
+		category: "access",
 		score,
 		status: statusFor(score, noindex || nofollow),
 		finding,
@@ -110,7 +111,10 @@ export async function checkCanonical(page: FetchedPage): Promise<CheckResult> {
 	let hasIssue = true;
 
 	if (!href) {
-		score = 55;
+		// A hygiene gap, not a wall: engines index the page anyway. Inside the
+		// weakest-link access category a 55 would have cost more than a
+		// blocked crawler, so it is priced as the minor thing it is.
+		score = 85;
 		finding = "No canonical tag.";
 		detail =
 			"No <link rel=\"canonical\"> in the head. Without one, the same page reachable at several URLs (with and without a trailing slash, with tracking parameters, http and https) can be treated as competing duplicates.";
@@ -125,7 +129,7 @@ export async function checkCanonical(page: FetchedPage): Promise<CheckResult> {
 			resolved = null;
 		}
 		if (!resolved) {
-			score = 40;
+			score = 70;
 			finding = "Canonical tag is not a valid URL.";
 			detail = `The canonical href (${href}) could not be parsed as a URL, so engines will ignore it.`;
 			fix = "Emit an absolute, valid URL in the canonical tag.";
@@ -146,7 +150,7 @@ export async function checkCanonical(page: FetchedPage): Promise<CheckResult> {
 				fix = "Nothing to do.";
 				codes.push({ code: "canonical.self" });
 			} else {
-				score = 70;
+				score = 80;
 				finding = "Canonical points to a different URL.";
 				detail = `Canonical points at ${resolved.toString()}, not this page. That is deliberate on a duplicate or a syndicated copy, and a mistake anywhere else — it asks engines to list the other URL instead of this one.`;
 				fix = "Confirm this page is genuinely a duplicate of the canonical target. If it is not, point the canonical at this page.";
@@ -160,7 +164,7 @@ export async function checkCanonical(page: FetchedPage): Promise<CheckResult> {
 
 	return {
 		id: "canonical",
-		category: "indexability",
+		category: "access",
 		score,
 		status: statusFor(score, hasIssue),
 		finding,
@@ -172,25 +176,14 @@ export async function checkCanonical(page: FetchedPage): Promise<CheckResult> {
 }
 
 /** A sitemap is how an engine finds pages that are not linked prominently.
- *  15% of prospects had neither a /sitemap.xml nor one declared in robots.txt. */
+ *  15% of prospects had neither a /sitemap.xml nor one declared in robots.txt.
+ *  Site-level: the sitemap is the site's, whichever page was asked about. */
 export async function checkSitemap(page: FetchedPage): Promise<CheckResult> {
 	const origin = originOf(page.finalUrl);
-    // robots.txt is the site's own declaration and takes precedence; the
-    // conventional path is only a fallback.
-	const robots = await fetchText(`${origin}/robots.txt`);
-	const declared =
-		robots && robots.status < 400 && /^\s*sitemap:/im.test(robots.text)
-			? (robots.text.match(/^\s*sitemap:\s*(\S+)/im)?.[1] ?? null)
-			: null;
-
-	let found = declared;
-	let viaRobots = Boolean(declared);
-	if (!found) {
-		const guess = await fetchText(`${origin}/sitemap.xml`);
-		if (guess && guess.status < 400 && /<(urlset|sitemapindex)/i.test(guess.text)) {
-			found = `${origin}/sitemap.xml`;
-		}
-	}
+	// robots.txt is the site's own declaration and takes precedence; the
+	// conventional path is only a fallback.
+	const { urls, declared: viaRobots } = await declaredSitemaps(origin);
+	const found = urls[0] ?? null;
 
 	const codes: CheckCode[] = [];
 	let score: number;
@@ -199,14 +192,16 @@ export async function checkSitemap(page: FetchedPage): Promise<CheckResult> {
 	let fix: string;
 
 	if (!found) {
-		score = 45;
+		// Discovery still works by following links; priced as a real but
+		// partial loss inside the weakest-link access category.
+		score = 70;
 		finding = "No sitemap found.";
 		detail = `Neither a Sitemap: line in robots.txt nor a readable ${origin}/sitemap.xml. Engines then rely entirely on following links, so anything not linked from a crawled page can go undiscovered.`;
 		fix =
 			"Publish /sitemap.xml listing your canonical URLs and declare it in robots.txt with a `Sitemap:` line. Most CMSs and site frameworks generate one for you.";
 		codes.push({ code: "sitemap.missing" });
 	} else if (!viaRobots) {
-		score = 80;
+		score = 90;
 		finding = "Sitemap exists but is not declared in robots.txt.";
 		detail = `Found ${found}, but robots.txt has no Sitemap: line. Engines usually try the conventional path anyway; declaring it removes the guesswork.`;
 		fix = `Add "Sitemap: ${found}" to robots.txt.`;
@@ -221,7 +216,8 @@ export async function checkSitemap(page: FetchedPage): Promise<CheckResult> {
 
 	return {
 		id: "sitemap",
-		category: "indexability",
+		category: "access",
+		scope: "site",
 		score,
 		status: statusFor(score, score < 100),
 		finding,

@@ -23,7 +23,8 @@ export async function checkLlmsTxt(page: FetchedPage): Promise<CheckResult> {
 	if (!present) {
 		return {
 			id: "llms_txt",
-			category: "structure",
+			category: "access",
+			scope: "site",
 			score: 100,
 			status: "pass",
 			finding: "No /llms.txt — not needed for AI-search citation.",
@@ -37,7 +38,8 @@ export async function checkLlmsTxt(page: FetchedPage): Promise<CheckResult> {
 	const bytes = res!.text.trim().length;
 	return {
 		id: "llms_txt",
-		category: "structure",
+		category: "access",
+		scope: "site",
 		score: 100,
 		status: "pass",
 		finding: "/llms.txt present — useful for coding agents, not AI search.",

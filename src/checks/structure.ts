@@ -1,6 +1,7 @@
 import { parse, type HTMLElement } from "node-html-parser";
 import type { CheckCode, CheckResult, FetchedPage } from "../types.js";
 import { statusFor } from "../scoring.js";
+import { visibleText, wordCount as countWords } from "../text.js";
 
 export async function checkStructure(
 	page: FetchedPage,
@@ -19,8 +20,8 @@ export async function checkStructure(
 		footer: root.querySelectorAll("footer").length,
 	};
 
-	const text = root.querySelector("body")?.text ?? root.text;
-	const wordCount = text.trim().split(/\s+/).filter(Boolean).length;
+	// Visible prose only — script, style and noscript content is not words.
+	const wordCount = countWords(visibleText(root.querySelector("body") ?? root));
 
 	const empty = isEmptyShell(root, wordCount);
 
@@ -155,7 +156,7 @@ function analyzeAnswerability(
 		let hops = 0;
 		while (sib && hops < 4) {
 			if (/^h[1-6]$/.test(String(sib.rawTagName ?? "").toLowerCase())) break;
-			words += (sib.text ?? "").trim().split(/\s+/).filter(Boolean).length;
+			words += countWords(visibleText(sib));
 			if (words >= 12) break;
 			sib = sib.nextElementSibling;
 			hops++;

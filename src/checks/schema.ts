@@ -19,6 +19,19 @@ const RECOGNIZED = new Set([
 	"Service",
 ]);
 
+/** Types that describe the page itself, as opposed to the site or its owner. */
+const PAGE_TYPES = new Set([
+	"Article",
+	"NewsArticle",
+	"BlogPosting",
+	"Product",
+	"FAQPage",
+	"HowTo",
+	"WebPage",
+	"SoftwareApplication",
+	"Service",
+]);
+
 type Json = Record<string, unknown>;
 
 export async function checkSchema(page: FetchedPage): Promise<CheckResult> {
@@ -52,10 +65,11 @@ export async function checkSchema(page: FetchedPage): Promise<CheckResult> {
 
 	const recognized = [...types].filter((t) => RECOGNIZED.has(t));
 	const hasOrg = types.has("Organization") || types.has("LocalBusiness");
-	const articleish =
-		types.has("Article") ||
-		types.has("NewsArticle") ||
-		types.has("BlogPosting");
+	// A type that says what THIS page is. Until 3.0 only an Article counted,
+	// so no brand page could reach 100 — "add Article schema" is not advice a
+	// shop or a clinic can use, and a page with nothing left to fix was told
+	// something was missing.
+	const hasPageType = recognized.some((t) => PAGE_TYPES.has(t));
 
 	// Answerability (folded-in AEO signal): FAQPage/QAPage schema whose
 	// questions are wired to acceptedAnswer is directly extractable by answer
@@ -69,7 +83,7 @@ export async function checkSchema(page: FetchedPage): Promise<CheckResult> {
 		score += 35;
 		if (recognized.length > 0) score += 25;
 		if (hasOrg) score += 20;
-		if (articleish) score += 15;
+		if (hasPageType) score += 15;
 		if (invalid === 0) score += 5;
 		if (faq === "wired") score += 10;
 	}
@@ -105,6 +119,15 @@ export async function checkSchema(page: FetchedPage): Promise<CheckResult> {
 			"Add Organization schema with name, url, logo, and sameAs links to your verified social profiles (LinkedIn, X, GitHub).";
 		codes.push({
 			code: "schema.no_organization",
+			data: { recognizedTypes: [...types] },
+		});
+	} else if (!hasPageType) {
+		finding = `Organization present; nothing says what this page is.`;
+		detail = `Recognized types: ${[...types].join(", ")}. The entity is declared, but no page-level type (WebPage, Article, Product, Service, FAQPage…) tells an engine what it is looking at.`;
+		fix =
+			"Add the type this page is — WebPage on a general page, Article with author and dates on a post, Product with offers on a product page, Service, FAQPage with answers — alongside the Organization.";
+		codes.push({
+			code: "schema.no_page_type",
 			data: { recognizedTypes: [...types] },
 		});
 	} else {

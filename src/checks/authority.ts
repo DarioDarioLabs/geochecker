@@ -9,7 +9,16 @@ const ABOUT_PATTERNS = [
 	/\bcompany\b/i,
 ];
 
-const CONTACT_PATTERNS = [/\bcontact\b/i, /\bkontakt\b/i];
+// A way to reach a person: a contact page, or the customer-service page a
+// shop calls it by.
+const CONTACT_PATTERNS = [
+	/\bcontact\b/i,
+	/\bkontakt\b/i,
+	/\bkundservice\b/i,
+	/\bkundtj[aä]nst\b/i,
+	/\bcustomer[- ]?service\b/i,
+	/\bsupport\b/i,
+];
 
 export async function checkAuthority(
 	page: FetchedPage,
@@ -32,8 +41,11 @@ export async function checkAuthority(
 					(Array.isArray(t) && t.some((v: unknown) => v === "Organization" || v === "LocalBusiness"));
 				if (isOrg) {
 					hasOrg = true;
-					if (Array.isArray(item.sameAs)) sameAsCount = item.sameAs.length;
-					else if (typeof item.sameAs === "string") sameAsCount = 1;
+					// The best-described Organization node counts; a second,
+					// sparser one (a publisher stub inside an Article) used to
+					// overwrite the first.
+					const n = Array.isArray(item.sameAs) ? item.sameAs.length : typeof item.sameAs === "string" ? 1 : 0;
+					sameAsCount = Math.max(sameAsCount, n);
 					if (item.logo) hasLogo = true;
 				}
 			}
@@ -121,7 +133,7 @@ export async function checkAuthority(
 			? optionalMissing.length === 0
 				? "Organization schema, sameAs links, About, and contact signals all present."
 				: `Organization schema, sameAs links, About, and contact signals present; ${optionalMissing.join(", ")}.`
-			: `Authority gaps: ${issues.join("; ")}.`;
+			: `Identity gaps: ${issues.join("; ")}.`;
 
 	const detail = `Organization schema: ${hasOrg ? "yes" : "no"}. sameAs entries: ${sameAsCount}. Logo in schema: ${hasLogo ? "yes" : "no"}. About link: ${aboutLink ? "yes" : "no"}. Contact link: ${contactLink ? "yes" : "no"}. mailto: ${mailto ? "yes" : "no"}. tel: ${tel ? "yes" : "no"}.`;
 
@@ -132,13 +144,15 @@ export async function checkAuthority(
 
 	return {
 		id: "authority",
-		category: "authority",
+		// On-page markup and links that say who is behind the site — not
+		// reputation, which no page scanner can see. Hence `identity`.
+		category: "identity",
 		score,
 		status: statusFor(score, issues.length > 0),
 		finding,
 		detail,
 		fix,
-		weight: 1.2,
+		weight: 1.0,
 		codes,
 	};
 }

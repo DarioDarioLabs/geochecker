@@ -1,6 +1,7 @@
 import { parse } from "node-html-parser";
 import type { CheckCode, CheckResult, FetchedPage } from "../types.js";
 import { statusFor } from "../scoring.js";
+import { visibleText, wordCount as countWords } from "../text.js";
 
 /**
  * Renderability — can a crawler that does NOT execute JavaScript read the
@@ -10,16 +11,17 @@ import { statusFor } from "../scoring.js";
  * how good its content is once JS runs.
  *
  * Measured on the raw fetched HTML (no browser), which is exactly what those
- * crawlers see. Distinct from `structure` (which assumes content is present
- * and grades its shape): this axis grades whether the content is present at
- * all before JS.
+ * crawlers see — and on its VISIBLE text: until 3.0 inline JavaScript and
+ * JSON counted as words, so a Next.js shell carrying its data blob passed as
+ * "server-rendered". Distinct from `structure` (which assumes content is
+ * present and grades its shape): this axis grades whether the content is
+ * present at all before JS.
  */
 export async function checkRenderability(page: FetchedPage): Promise<CheckResult> {
 	const root = parse(page.html);
 	const body = root.querySelector("body");
 
-	const bodyText = (body?.text ?? root.text).trim();
-	const wordCount = bodyText.split(/\s+/).filter(Boolean).length;
+	const wordCount = countWords(visibleText(body ?? root));
 	const hasMainOrArticle =
 		(body?.querySelectorAll("main").length ?? 0) > 0 ||
 		(body?.querySelectorAll("article").length ?? 0) > 0;
@@ -60,6 +62,9 @@ export async function checkRenderability(page: FetchedPage): Promise<CheckResult
 			}
 		} else if (wordCount < 250) {
 			codes.push({ code: "renderability.thin_raw_html", data: { wordCount } });
+		} else {
+			// Plenty of text, nothing marking which part of it is the content.
+			codes.push({ code: "renderability.no_landmark", data: { wordCount } });
 		}
 	}
 
@@ -71,20 +76,24 @@ export async function checkRenderability(page: FetchedPage): Promise<CheckResult
 			? "Page ships as a JavaScript shell — little to no content in the raw HTML."
 			: wordCount >= 250 && hasMainOrArticle
 				? `Content is server-rendered (${wordCount} words in raw HTML, main/article present).`
-				: `Raw HTML carries ${wordCount} words — thinner than ideal for non-JS crawlers.`;
+				: wordCount >= 250
+					? `Content is server-rendered (${wordCount} words) but nothing marks the main content region.`
+					: `Raw HTML carries ${wordCount} words — thinner than ideal for non-JS crawlers.`;
 
-	const detail = `Raw-HTML word count: ${wordCount}. main/article present: ${hasMainOrArticle}. SPA shell: ${shell}. <noscript> words: ${noscriptWords}. meta-refresh: ${metaRefresh}. Measured on the un-hydrated server response — what GPTBot/ClaudeBot/PerplexityBot receive.`;
+	const detail = `Visible-text word count in the raw HTML: ${wordCount}. main/article present: ${hasMainOrArticle}. SPA shell: ${shell}. <noscript> words: ${noscriptWords}. meta-refresh: ${metaRefresh}. Measured on the un-hydrated server response — what GPTBot/ClaudeBot/PerplexityBot receive.`;
 
 	const fix =
 		score >= 70
-			? "Keep the primary content in the server response. If you add client-only sections, ensure the substance stays server-rendered."
+			? hasMainOrArticle
+				? "Keep the primary content in the server response. If you add client-only sections, ensure the substance stays server-rendered."
+				: "Wrap the primary content in <main> (or <article>) so a crawler can tell it from the chrome."
 			: shell || metaRefresh
 				? "Server-render or pre-render the content. SvelteKit, Next.js, Nuxt, and Astro do this by default; for a pure SPA, add prerendering (Prerender.io, a static export, or a crawler-facing SSR route)."
 				: "Increase the substantive text delivered in the initial HTML response. Aim for the main body copy to be present before any JavaScript runs.";
 
 	return {
 		id: "renderability",
-		category: "renderability",
+		category: "access",
 		score,
 		status: statusFor(
 			score,
@@ -93,7 +102,9 @@ export async function checkRenderability(page: FetchedPage): Promise<CheckResult
 		finding,
 		detail,
 		fix,
-		weight: 1,
+		// The heaviest page-level access signal: a shell is invisible to every
+		// non-JS fetcher, whatever the rest of the page does.
+		weight: 1.6,
 		codes,
 	};
 }
@@ -107,8 +118,7 @@ function detectSpaShell(root: ReturnType<typeof parse>, wordCount: number): bool
 		"#app, #root, #svelte, #__next, #__nuxt, [data-reactroot]",
 	);
 	for (const m of mounts) {
-		const mWords = (m.text ?? "").trim().split(/\s+/).filter(Boolean).length;
-		if (mWords < 20) return true;
+		if (countWords(visibleText(m)) < 20) return true;
 	}
 	// No recognizable mount node but still almost no text and scripts present.
 	return mounts.length === 0 && wordCount < 40;
@@ -117,7 +127,9 @@ function detectSpaShell(root: ReturnType<typeof parse>, wordCount: number): bool
 function noscriptWordCount(root: ReturnType<typeof parse>): number {
 	let words = 0;
 	for (const n of root.querySelectorAll("noscript")) {
-		words += (n.text ?? "").trim().split(/\s+/).filter(Boolean).length;
+		// noscript content is parsed as text by node-html-parser; strip any
+		// tags it carries before counting.
+		words += countWords(n.text.replace(/<[^>]+>/g, " "));
 	}
 	return words;
 }
