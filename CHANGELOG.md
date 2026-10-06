@@ -5,6 +5,14 @@ All notable changes to `@dariodario/geochecker` are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.0.1] - 2026-10-06
+
+### Changed
+
+- The scanner's User-Agent is now `Mozilla/5.0 (compatible; DarioDarioGeoChecker/1.0; +https://dariodario.com/geochecker)`
+  (was `DarioGeoBot/1.0`): the name a site owner sees in their logs says who is
+  fetching. Nothing else changes; scores are identical to 3.0.0.
+
 ## [3.0.0] - 2026-10-04
 
 The site, not the URL. **Breaking**: the categories, several scores and the

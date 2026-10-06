@@ -1,6 +1,6 @@
 {
   "name": "@dariodario/geochecker",
-  "version": "3.0.0",
+  "version": "3.0.1",
   "description": "Open-source Generative Engine Optimization (GEO) scorer. Scans a site — its home page and the pages an assistant needs — for readiness to be cited by AI search.",
   "license": "MIT",
   "author": "Dario Dario <hello@dariodario.com> (https://dariodario.com)",
