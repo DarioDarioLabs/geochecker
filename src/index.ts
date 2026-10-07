@@ -18,6 +18,7 @@ export { scanSite, collectCandidates, defaultPick, roleOf, unreachableResult, wa
 export type { SiteOptions, PickPages } from "./site.js";
 export { visibleText, wordCount, pageProse } from "./text.js";
 export { resetFetchMemo } from "./fetch.js";
+export { authorityFacts, checkAuthoritySite, type AuthorityFacts } from "./checks/authority.js";
 export { CATEGORIES, CATEGORY_WEIGHT, aggregate, aggregateSite } from "./scoring.js";
 
 export type RunOptions = {

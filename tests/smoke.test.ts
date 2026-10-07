@@ -431,3 +431,16 @@ test("site categories average each page check across pages, then score like a pa
 	const mean = Math.round(pageStructure.reduce((s, x) => s + x, 0) / pageStructure.length);
 	assert.ok(Math.abs(structure.score - mean) <= 1, `site structure ${structure.score} should be the mean of ${pageStructure}`);
 });
+
+test("identity is scored once for the site: a mailto on the contact page counts for every page", async () => {
+	site();
+	routes["/contact"] = { body: fullPage("Contact", `Write to us. ${prose(300)}`).replace("</main>", '<a href="mailto:hej@example.com">hej@example.com</a><a href="tel:+4618123456">Call</a></main>') };
+	const report = await scanSite("example.com");
+	const identity = report.checks.filter((c) => c.id === "authority");
+	assert.equal(identity.length, 1, "one identity result for the site, not one per page");
+	assert.equal(identity[0].scope, "site");
+	assert.match(identity[0].detail, /mailto: yes \(\/contact\)/);
+	assert.match(identity[0].detail, /tel: yes \(\/contact\)/);
+	assert.doesNotMatch(identity[0].fix, /mailto/, "the advice names only what is missing");
+	assert.match(identity[0].fix, /Organization JSON-LD/);
+});

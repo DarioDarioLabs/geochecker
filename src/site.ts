@@ -1,5 +1,6 @@
 import { parse } from "node-html-parser";
 import { pageChecks as builtinPageChecks, siteChecks as builtinSiteChecks } from "./checks/index.js";
+import { checkAuthority, checkAuthoritySite } from "./checks/authority.js";
 import { fetchPage, hostOf, normalizeUrl, originOf, sitemapUrls } from "./fetch.js";
 import { aggregate, aggregateSite } from "./scoring.js";
 import type {
@@ -258,7 +259,8 @@ export async function scanSite(url: string, opts: SiteOptions = {}): Promise<Sit
 		(f, i) => fetched.findIndex((g) => g.page.finalUrl === f.page.finalUrl) === i,
 	);
 
-	const pageChecks = opts.checks ?? builtinPageChecks;
+	// Identity is scored once for the site (checkAuthoritySite), not per page.
+	const pageChecks = opts.checks ?? builtinPageChecks.filter((c) => c !== checkAuthority);
 	const extraChecks = opts.extraChecks ?? [];
 	const pages: PageReport[] = await Promise.all(
 		unique.map(async ({ page, role }) => {
@@ -291,7 +293,7 @@ export async function scanSite(url: string, opts: SiteOptions = {}): Promise<Sit
 	};
 	// Built-in site checks take the home page: robots.txt and the sitemap are
 	// the site's, whichever page was asked about.
-	const builtinSite = (opts.siteChecks ?? builtinSiteChecks.map(fromPageCheck)).map(runSite);
+	const builtinSite = (opts.siteChecks ?? [...builtinSiteChecks.map(fromPageCheck), ...(opts.checks ? [] : [checkAuthoritySite])]).map(runSite);
 	const extraSite = (opts.extraSiteChecks ?? []).map(runSite);
 	const [siteBuiltin, siteExtra] = await Promise.all([
 		Promise.all(builtinSite),

@@ -5,6 +5,25 @@ All notable changes to `@dariodario/geochecker` are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.1.0] - 2026-10-07
+
+### Changed
+
+- **Identity is scored once for the site.** `scanSite` no longer runs
+  `authority` on every page; `checkAuthoritySite` reads every page of the scan
+  and counts each signal — Organization markup, `sameAs`, the logo, an About
+  link, a contact link, `mailto:`, `tel:` — wherever it is found. Scored per
+  page, every inner page without its own markup failed, and a shop whose
+  customer-service page carries `mailto:` and `tel:` links was told to "expose
+  at least one mailto: address". The detail names the page each signal was
+  found on; the result carries `scope: "site"`. Identity scores move.
+- The `authority` advice names only what is missing.
+- `runChecks(url)` (one page) is unchanged.
+
+### Added
+
+- `authorityFacts(page)` and `checkAuthoritySite(input)`.
+
 ## [3.0.1] - 2026-10-06
 
 ### Changed
