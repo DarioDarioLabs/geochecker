@@ -41,7 +41,11 @@ export async function checkFreshness(
 	for (const block of root.querySelectorAll('script[type="application/ld+json"]')) {
 		try {
 			const json = JSON.parse(block.text);
-			const items = Array.isArray(json) ? json : [json];
+			// A `@graph` wrapper (Yoast, most WordPress sites) holds the items;
+			// until 3.1.2 only the wrapper was looked at, and it carries no dates.
+			const items = (Array.isArray(json) ? json : [json]).flatMap((x) =>
+				Array.isArray(x?.["@graph"]) ? x["@graph"] : [x],
+			);
 			for (const item of items) {
 				if (!datesThePage(item)) continue;
 				const pub = item?.datePublished;

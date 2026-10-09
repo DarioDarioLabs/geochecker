@@ -5,6 +5,18 @@ All notable changes to `@dariodario/geochecker` are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.1.2] - 2026-10-09
+
+### Fixed
+
+- **`freshness` reads dates inside a JSON-LD `@graph`.** Only the wrapper
+  object was inspected, and it carries no dates, so the `dateModified` a
+  Yoast-style graph puts on its `WebPage` or `Article` was never seen from
+  the markup. The 3.1.1 type rule applies to the items inside.
+- What moves: `freshness` on pages whose only date signal is inside a
+  `@graph` — from 70 ("no date signals") or 30 (an undated article) to the
+  bucket its date earns, up or down. Nothing else changes.
+
 ## [3.1.1] - 2026-10-09
 
 ### Fixed

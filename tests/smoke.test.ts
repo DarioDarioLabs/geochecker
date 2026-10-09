@@ -238,6 +238,8 @@ test("freshness: a work's release date is not the page's age; an article's date 
 	assert.ok(article.codes!.some((c) => c.code === "freshness.very_stale" || c.code === "freshness.stale"));
 	const webPage = await freshness(page(ld({ "@type": "WebPage", dateModified: new Date().toISOString() })));
 	assert.ok(webPage.codes!.some((c) => c.code === "freshness.fresh"));
+	const graph = await freshness(page(ld({ "@context": "https://schema.org", "@graph": [{ "@type": "Organization", name: "x" }, { "@type": "WebPage", dateModified: new Date().toISOString() }, { "@type": "Product", datePublished: "2015-03-01" }] })));
+	assert.ok(graph.codes!.some((c) => c.code === "freshness.fresh"), JSON.stringify(graph.codes));
 });
 
 test("a noindex page is scored 0 and reported as fail, from meta or header", async () => {
