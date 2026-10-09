@@ -226,6 +226,20 @@ test("freshness: a future date is not a freshness signal", async () => {
 
 // ---- access -------------------------------------------------------------------
 
+test("freshness: a work's release date is not the page's age; an article's date is", async () => {
+	const freshness = pageChecks.find((c) => c.name === "checkFreshness")!;
+	const ld = (o: object) => `<html><body><script type="application/ld+json">${JSON.stringify(o)}</script><p>x</p></body></html>`;
+	const album = await freshness(page(ld({ "@type": "MusicAlbum", name: "Rain", datePublished: "2021-01-22" })));
+	assert.ok(album.codes!.some((c) => c.code === "freshness.no_signals_brand"), JSON.stringify(album.codes));
+	assert.equal(album.score, 70);
+	const product = await freshness(page(ld({ "@type": ["Product", "Book"], datePublished: "2015-03-01" })));
+	assert.equal(product.score, 70);
+	const article = await freshness(page(ld({ "@type": "NewsArticle", datePublished: "2021-01-22" })));
+	assert.ok(article.codes!.some((c) => c.code === "freshness.very_stale" || c.code === "freshness.stale"));
+	const webPage = await freshness(page(ld({ "@type": "WebPage", dateModified: new Date().toISOString() })));
+	assert.ok(webPage.codes!.some((c) => c.code === "freshness.fresh"));
+});
+
 test("a noindex page is scored 0 and reported as fail, from meta or header", async () => {
 	const indexable = pageChecks.find((c) => c.name === "checkIndexable")!;
 	const meta = await indexable(page('<html><head><meta name="robots" content="noindex, follow"></head><body><p>hi</p></body></html>'));

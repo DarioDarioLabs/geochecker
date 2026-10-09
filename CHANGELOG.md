@@ -5,6 +5,21 @@ All notable changes to `@dariodario/geochecker` are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.1.1] - 2026-10-09
+
+### Fixed
+
+- **`freshness` no longer reads a work's release date as the page's age.**
+  A JSON-LD `datePublished` / `dateModified` counts only on an item that
+  describes the page: any type ending in `Article`, `Posting` or `Page`, plus
+  `WebSite`, `Blog`, `Report`, `HowTo` and `Recipe`. On a `MusicAlbum`, a
+  `Movie`, a `Book` or a `Product` the date is when the thing was released,
+  and an album page from 2021 scored 20 with the advice to "republish or
+  sunset stale content". An item with no `@type` is not counted either.
+- What moves: `freshness` rises on pages whose only schema date sat on a
+  work or product (to 70, "no date signals", or to whatever their other dates
+  say). Nothing else changes; codes are unchanged.
+
 ## [3.1.0] - 2026-10-07
 
 ### Changed

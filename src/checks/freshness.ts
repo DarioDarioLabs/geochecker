@@ -43,6 +43,7 @@ export async function checkFreshness(
 			const json = JSON.parse(block.text);
 			const items = Array.isArray(json) ? json : [json];
 			for (const item of items) {
+				if (!datesThePage(item)) continue;
 				const pub = item?.datePublished;
 				const mod = item?.dateModified;
 				if (typeof pub === "string") {
@@ -164,6 +165,22 @@ export async function checkFreshness(
 		weight: 1.0,
 		codes,
 	};
+}
+
+/**
+ * Whether a JSON-LD item's dates say when the PAGE was written. On an
+ * article, a posting or a page type they do. On a work or a product they are
+ * the release date of the thing described: a MusicAlbum's `datePublished` is
+ * the day the album came out, and until 3.1.1 an album page from 2021 scored
+ * 20 with the advice to "republish or sunset stale content" (Spotify,
+ * 2026-10-09). An item with no type says nothing about what it dates.
+ */
+const PAGE_TYPE = /(Article|Posting|Page)$|^(WebSite|Blog|Report|HowTo|Recipe)$/;
+
+function datesThePage(item: unknown): boolean {
+	const type = (item as { "@type"?: unknown } | null)?.["@type"];
+	const types = Array.isArray(type) ? type : [type];
+	return types.some((t) => typeof t === "string" && PAGE_TYPE.test(t));
 }
 
 function parseDate(s: string): Date | null {
